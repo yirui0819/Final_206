@@ -1,0 +1,19 @@
+---
+title: "Final"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+```
+
+###Task 1 
+Explore relationships between climate change perspectives, information exposure, education
+attainment, poverty levels and coastline on the proportion of people who believe that global warming is happening (i.e., ‘happening’ should be your dependent variable).
+```{r}
+co <- read
+```
