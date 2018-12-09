@@ -8,12 +8,188 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-
+library(tidyverse)
+library(corrplot)
+library(stargazer)
+library(effsize)
+library(knitr)
+library(kableExtra)
 ```
 
 ###Task 1 
 Explore relationships between climate change perspectives, information exposure, education
 attainment, poverty levels and coastline on the proportion of people who believe that global warming is happening (i.e., ‘happening’ should be your dependent variable).
+
+
 ```{r}
-co <- read
+climate_op <- read_csv("climate_opinion.csv") %>% 
+   na.omit
+ 
+#Question1.
+#Multiple linear regression. The utput is determined by various inputs.
+
+#Question2: correlation materix
+cor_co <- cor(climate_op[2:7])
+corrplot(cor_co, 
+         type = "upper", 
+         method = "ellipse", 
+         order = "hclust", 
+         tl.col = "black", 
+         tl.srt = 45, 
+         tl.cex = 0.5) # also try method = number, method = color
+
+#Question 3. A finalized table of results
+#H0: The model does not significantly predict the outcome (i.e., there is no relationship between the model and the outcome; no variables significantly predict outcome)
+#HA: AT LEAST ONE of the explanatory variables significantly predicts the outcome
+
+Model1 <- lm(happening ~consensus + discuss + mediaweekly + bachelors + poverty_rate +coastline, data = climate_op)
+summary(Model1)
+#Exculde bachelars, which is not significant revelant to this model
+
+Model2 <-lm(happening ~consensus + discuss + mediaweekly + poverty_rate +coastline, data = climate_op)
+summary(Model2)
+
+AIC(Model1) #122.45
+AIC(Model2) #122.08
+
+#lm_tab <- stargazer(Model1, Model2, type = "html")
+#lm_tab
+
+
+#Question 4. Choose two coefficients in the model that you find interesting (either because they are expected or unexpected). For each, write a single sentence explaining what that coefficient means in terms of an expected change in the dependent variable
+#听录音写意义
+#0.707: The people lived near coatline is more 
+
+#0.14 household income
+
+
+#Question 5.  diagnostic plots, describe (1 - 2 sentences) if you have concerns about heteroscedasticity or normality of residuals for your model(s). You do not need to include the diagnostic plots in your final document.
+plot(Model2)
+
+##The data in general is following the linear relation. Based on the diagnostic plots, heterscedasticity is reasonable and residuals are normally distributed around the horizonal line, which this model makes sense conceptually and mathmateically.
+
 ```
+###Task 2
+```{r}
+ucsb_climate <-read_csv("ucsb_climate.csv")
+
+#Question1.
+#Is there a significant association between race and perceived campus respect?
+#
+```
+
+###Task 3
+```{r}
+##explore effects of sex and age on probability that a person will respond True or False
+#(A)
+self_con <- read_csv("tmas_df.csv")
+#Binomial logistic regression
+self_con <- self_con %>% 
+  mutate(outcome = case_when(
+response == "False"~0,
+response == "True"~1
+  )) %>% 
+  select(age, sex_mf, outcome)
+
+t3_model <- glm(outcome ~ sex_mf + age, family = "binomial" , data = self_con)
+summary(t3_model)
+t3_table <- stargazer(t3_model, type = "html")
+t3_table
+
+
+
+#
+```
+
+
+###Task 4
+```{r}
+#Is there a significant difference in pyraclostrobin concentrations in strawberries (STRAWBERRY (ALL OR UNSPEC)) and carrots (CARROTS (ROOT CROP))?
+residue <- read_csv("PesticideResidues.csv")
+residue_test <- residue %>% 
+  filter(CHEMICAL == "PYRACLOSTROBIN") %>% 
+  filter(COMMODITY == "CARROTS (ROOT CROP)" |COMMODITY == "STRAWBERRY (ALL OR UNSPEC)") %>%
+  select(COMMODITY,AMOUNT)
+
+
+#Table
+residue_sum <- residue_test %>% 
+   group_by(COMMODITY) %>%
+  summarize( 
+    mean = round(mean(AMOUNT),2),
+    sd = round(sd(AMOUNT),2),
+    sample_size = length(AMOUNT)
+      )
+t4_kable <- kable(residue_sum, col.names=c("Commodity","mean(ppm)","sd(ppm)","sample_size")) %>% #make a table
+  kable_styling(bootstrap_options = c("striped","hover"),  #striped with stripes
+                full_width = FALSE) %>%
+  column_spec(column = 1, bold = T, color = "black") #Highlight the column of month
+t4_kable
+
+
+#Histogram
+t4_hist <- ggplot(residue_test, aes(x = AMOUNT)) +
+  geom_histogram(aes(fill = COMMODITY)) +
+  facet_wrap(~ COMMODITY, scale = "free")
+t4_hist
+#QQ plot
+t4_qq <- ggplot(residue_test, aes(sample = AMOUNT)) +
+  geom_qq(aes(fill = COMMODITY)) +
+  facet_wrap(~ COMMODITY, scale = "free")
+t4_qq
+
+
+#The f-test is performed to test equal variance and the p-value indicates the unequal variance in strawberry and carrots. Therefore, Welch’s t-test is used to analyze the difference in these two groups.
+
+residue_test_st <- residue %>% 
+  filter(CHEMICAL == "PYRACLOSTROBIN") %>% 
+  filter(COMMODITY == "STRAWBERRY (ALL OR UNSPEC)") %>% 
+  select(AMOUNT)
+
+residue_test_ca <- residue %>% 
+  filter(CHEMICAL == "PYRACLOSTROBIN") %>% 
+  filter(COMMODITY == "CARROTS (ROOT CROP)") %>% 
+  select(AMOUNT)
+
+#Make exploratory historgrams and ggplots for the distribution of pyraclostrobin concentrations in strawberries and carrots
+
+
+var.test(residue_test_ca$AMOUNT,residue_test_st$AMOUNT)
+#p-value is less than 0.05 (p<0.001). The variance of these two samples are not equal.
+
+t.test(residue_test_ca$AMOUNT,residue_test_st$AMOUNT, var.equal = FALSE)
+#p-value <0.001
+
+effect_size <- cohen.d(residue_test_st$AMOUNT,residue_test_ca$AMOUNT)
+effect_size #0.848
+#There is a significant difference in pyraclostrobin concentrations in strawberries(μ = 0.03 ppm, sd = 0.02 ppm, n = 15) and carrots(μ = 0.12 ppm, sd = 0.13 ppm, n = 40).With a large effect size(0.848), the absolute difference of mean concentration in these two groups is 0.09 ppm.
+```
+
+
+
+###Task 5
+```{r}
+#top 10 California counties ranked by pounds of active pesticide ingredient applied per square mile.
+
+pesticide <- read_csv("ca_county_pesticides.csv")
+pesticide_10 <- pesticide %>% 
+  mutate(rank = `Pounds Active Pesticide Ingredient Used`/`County Area (Square Miles)`) %>%
+  arrange(-rank) %>%
+  select(County,rank) %>% 
+  head(10)
+
+pesticide_10$County <- factor(pesticide_10$County, levels = c("San Joaquin","Fresno","Sutter","Kings","Stanislaus","Merced","Madera","Santa Cruz","Sacramento","Ventura"))
+
+pesticide_gr <- ggplot(pesticide_10, aes(x = County, y = rank)) +
+  geom_col(fill = "pink",color = "black") +
+  labs(x = "County", 
+       y = "Pesticide applied per square mile", 
+       title = "Top 10 California counties ranked by pounds of active pesticide ingredient applied per square mile") +
+  theme_classic()+
+  coord_flip()+
+  scale_y_continuous(expand=c(0,0))+
+  scale_x_discrete(expand=c(0,0))
+
+pesticide_gr
+```
+
